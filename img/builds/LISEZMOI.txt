@@ -1,0 +1,4 @@
+Placez vos images ici :
+  miniatures/miniature_build_25.png   (vignettes de la galerie)
+  profil/build_25.png                  (version agrandie)
+Les numéros de builds se règlent dans assets/js/app.js (objet DATA).

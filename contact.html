@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contact : parler de mon projet web | Ghost-Wob</title>
+<meta name="description" content="Décrivez votre projet de site web : création, refonte, SEO, maintenance ou développement sur mesure. Formulaire simple, réponse par email.">
+<meta name="robots" content="noindex, nofollow"><!--A-RETIRER-A-LA-PUBLICATION-->
+<meta name="theme-color" content="#202020">
+<link rel="canonical" href="https://VOTRE-DOMAINE.fr/contact.html">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Ghost-Wob">
+<meta property="og:title" content="Contact : parler de mon projet web | Ghost-Wob">
+<meta property="og:description" content="Décrivez votre projet de site web : création, refonte, SEO, maintenance ou développement sur mesure. Formulaire simple, réponse par email.">
+<meta property="og:url" content="https://VOTRE-DOMAINE.fr/contact.html">
+<meta property="og:image" content="https://VOTRE-DOMAINE.fr/assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23202020'/%3E%3Crect x='9' y='9' width='14' height='14' fill='none' stroke='%2300ffff' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/app.js" defer></script>
+<script src="assets/js/contact.js" defer></script>
+</head>
+<body>
+<!-- Fond, en-tête, pied de page et notification : injectés par assets/js/app.js -->
+<main id="main">
+<section class="page">
+  <div class="wrap">
+    <h1 class="title">Parler de mon projet</h1>
+    <p class="page-lead">Décrivez votre besoin en quelques lignes. Seules les informations utiles sont demandées.</p>
+    <div class="contact-grid">
+      <form class="form" id="devis" autocomplete="on">
+        <div class="two">
+          <label>Nom<input type="text" name="nom" required autocomplete="name"></label>
+          <label><span>Entreprise <span class="opt">(facultatif)</span></span><input type="text" name="entreprise" autocomplete="organization"></label>
+        </div>
+        <div class="two">
+          <label>Email<input type="email" name="email" required autocomplete="email"></label>
+          <label>Type de projet<select name="type" required><option value="">Choisir…</option><option>Création de site vitrine</option><option>Refonte de site</option><option>Développement sur mesure</option><option>Maintenance</option><option>Autre ou je ne sais pas encore</option></select></label>
+        </div>
+        <label>Votre besoin<textarea name="besoin" required placeholder="Votre activité, ce que vous attendez du site, vos délais éventuels…"></textarea></label>
+        <label><span>Budget indicatif <span class="opt">(facultatif)</span></span><input type="text" name="budget"></label>
+        <div class="hp" aria-hidden="true"><label>Ne pas remplir<input type="text" name="hp" tabindex="-1" autocomplete="off"></label></div>
+        <button class="btn fill" type="submit">Envoyer ma demande</button>
+        <p class="form-status" id="form-status" role="status"></p>
+      </form>
+      <div class="infos">
+        <a class="info js-email" href="contact.html"><small>Email</small><span class="ph">[À RENSEIGNER] email professionnel</span></a>
+        <a class="info js-linkedin" href="#" target="_blank" rel="noopener noreferrer"><small>LinkedIn</small>Voir mon profil</a>
+        <a class="info js-github" href="https://github.com" target="_blank" rel="noopener noreferrer"><small>GitHub</small>Voir mes projets</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+</body>
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planning 24/7 — Ghost-Wob</title>
+<meta name="description" content="Planning hebdomadaire 24h/24, 7j/7 avec tags, recherche, export et impression : emploi du temps interactif de Ghost-Wob.">
+<meta name="robots" content="noindex, follow">
+<meta name="theme-color" content="#202020">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23202020'/%3E%3Crect x='9' y='9' width='14' height='14' fill='none' stroke='%2300ffff' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/planning.css">
+<script src="assets/js/app.js" defer></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js" defer></script>
+<script src="assets/js/planning.js" defer></script>
+</head>
+<body>
+<!-- Fond circuit, en-tête, pied de page et notification : injectés par assets/js/app.js -->
+<main id="main">
+  <section class="page">
+    <div class="wrap">
+      <h1 class="title">Planning 24/7</h1>
+      <p class="page-lead">Emploi du temps de minuit à minuit, du lundi au dimanche, avec tags, recherche et export. Vos données restent dans votre navigateur.</p>
+      <noscript><p class="page-lead">Cette page nécessite JavaScript.</p></noscript>
+
+      <div id="app" v-cloak>
+
+        <div class="pl-bar">
+          <div class="pl-search">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" v-model="searchQuery" placeholder="Rechercher une activité…" aria-label="Rechercher une activité">
+            <button v-if="searchQuery" class="pl-ic" aria-label="Effacer la recherche" @click="searchQuery = ''"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <button class="btn fill sm" @click="openModal()"><i class="fa-solid fa-plus"></i>Ajouter</button>
+          <button class="btn sm" @click="isTagModalOpen = true"><i class="fa-solid fa-tags"></i>Tags ({{ tags.length }})</button>
+          <button class="btn sm" @click="goNow"><i class="fa-solid fa-location-crosshairs"></i>Maintenant</button>
+          <button class="pl-ic" title="Exporter / Importer" aria-label="Exporter ou importer" @click="isExportModalOpen = true"><i class="fa-solid fa-file-export"></i></button>
+          <button class="pl-ic" title="Imprimer" aria-label="Imprimer" @click="printSchedule"><i class="fa-solid fa-print"></i></button>
+        </div>
+
+        <div class="pl-panel pl-filters">
+          <span class="pl-label"><i class="fa-solid fa-filter" aria-hidden="true"></i>Filtre par tag</span>
+          <div class="pl-chips">
+            <button class="pl-chip" :class="{ on: selectedTagFilters.length === 0 }" @click="selectedTagFilters = []">Tous ({{ events.length }})</button>
+            <button v-for="tag in tags" :key="tag.id" class="pl-chip" :style="getTagFilterStyle(tag)" :aria-pressed="selectedTagFilters.includes(tag.id)" @click="toggleTagFilter(tag.id)">
+              <i class="pl-dot" :style="{ backgroundColor: tag.color }"></i>{{ tag.name }} <small>({{ getTagCount(tag.id) }})</small>
+            </button>
+          </div>
+          <span class="pl-total">Total : <b>{{ totalWeeklyHours }} h / semaine</b></span>
+        </div>
+
+        <div class="pl-stats">
+          <div v-for="stat in tagStats" :key="stat.id" class="pl-stat">
+            <span class="pl-sn"><i class="pl-dot" :style="{ backgroundColor: stat.color }"></i>{{ stat.name }}</span>
+            <span class="pl-sv"><b>{{ stat.hours }} h</b><small>{{ stat.percentage }} %</small></span>
+          </div>
+        </div>
+
+        <div class="pl-printhead">Planning 24/7 · {{ printDate }}</div>
+        <div class="pl-panel pl-table">
+          <div class="pl-scroll">
+            <div class="pl-wrap">
+              <div class="pl-head">
+                <div class="pl-corner"><span><i class="fa-regular fa-clock" aria-hidden="true"></i> 24H</span></div>
+                <div v-for="(day, i) in days" :key="day" class="pl-day" :class="{ today: currentDayIndex === i }">
+                  <b>{{ day }}</b><small>{{ getDayTotalHours(i) }} h planifiées</small>
+                </div>
+              </div>
+
+              <div class="pl-body">
+                <div class="pl-times">
+                  <div v-for="hour in 24" :key="hour" class="pl-cell time">{{ formatHour(hour - 1) }}</div>
+                </div>
+
+                <div v-for="(day, di) in days" :key="di" class="pl-col" :class="{ today: currentDayIndex === di }">
+                  <div v-for="hour in 24" :key="hour" class="pl-cell slot" @click="quickAddEvent(di, hour - 1)"><span>+ {{ formatHour(hour - 1) }}</span></div>
+
+                  <div v-if="currentDayIndex === di" class="pl-now" :style="{ top: 'calc(var(--hh) * ' + liveHour + ')' }"></div>
+
+                  <div v-for="event in filteredEventsByDay(di)" :key="event.id" class="pl-ev" :class="evSize(event)" role="button" tabindex="0"
+                       :style="getEventStyle(event)" :aria-label="event.title + ', ' + day + ' ' + event.startTime + ' à ' + event.endTime"
+                       @click.stop="editEvent(event)" @keydown.enter.self="editEvent(event)">
+                    <div>
+                      <div class="pl-evtop">
+                        <b>{{ event.title }}</b>
+                        <span class="pl-evact">
+                          <button title="Dupliquer" aria-label="Dupliquer" @click.stop="duplicateEvent(event)"><i class="fa-regular fa-copy"></i></button>
+                          <button title="Supprimer" aria-label="Supprimer" @click.stop="askDeleteEvent(event.id)"><i class="fa-solid fa-trash"></i></button>
+                        </span>
+                      </div>
+                      <p v-if="event.location"><i class="fa-solid fa-location-dot" aria-hidden="true"></i> {{ event.location }}</p>
+                    </div>
+                    <div class="pl-evbot">
+                      <span>{{ event.startTime }} - {{ event.endTime }}</span>
+                      <span class="pl-pills"><span v-for="tagId in event.tags" :key="tagId" :style="{ backgroundColor: getTagById(tagId)?.color || '#94a3b8' }">{{ getTagById(tagId)?.name }}</span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ajouter / modifier une activité -->
+        <dialog v-if="isModalOpen" v-dlg class="pl-m" aria-labelledby="t-ev" @close="isModalOpen = false">
+          <div class="pl-mh">
+            <h3 id="t-ev" class="pl-mt"><i class="fa-solid fa-calendar-plus" aria-hidden="true"></i>{{ editingId ? "Modifier l'activité" : "Ajouter une activité" }}</h3>
+            <button class="pl-ic" aria-label="Fermer" @click="closeModal"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <form class="pl-form" @submit.prevent="saveEvent">
+            <label class="pl-f">Intitulé *<input type="text" v-model="form.title" required autofocus placeholder="ex. Cours de maths, sport, sommeil…"></label>
+            <div class="pl-3">
+              <label class="pl-f">Jour *<select v-model.number="form.day" required><option v-for="(day, index) in days" :key="index" :value="index">{{ day }}</option></select></label>
+              <label class="pl-f">Début *<input type="time" v-model="form.startTime" required></label>
+              <label class="pl-f">Fin *<input type="time" v-model="form.endTime" required></label>
+            </div>
+            <div class="pl-f">
+              <div class="pl-fh"><span>Tags associés</span><button type="button" class="pl-lnk" @click="isTagModalOpen = true">+ Créer un tag</button></div>
+              <div class="pl-chips box">
+                <button v-for="tag in tags" :key="tag.id" type="button" class="pl-chip" :aria-pressed="form.tags.includes(tag.id)" @click="toggleFormTag(tag.id)"
+                        :style="{ backgroundColor: form.tags.includes(tag.id) ? tag.color : 'transparent', borderColor: tag.color, color: form.tags.includes(tag.id) ? '#fff' : tag.color }">
+                  <i v-if="form.tags.includes(tag.id)" class="fa-solid fa-check"></i>{{ tag.name }}
+                </button>
+              </div>
+            </div>
+            <label class="pl-f">Lieu / professeur / notes<input type="text" v-model="form.location" placeholder="ex. Amphi C, salle 204, gymnase…"></label>
+            <div class="pl-f">
+              <span>Couleur d'affichage</span>
+              <div class="pl-colors">
+                <button v-for="c in colorPresets" :key="c.bg" type="button" class="pl-color" :class="{ on: form.bgColor === c.bg }" :style="{ backgroundColor: c.bg }"
+                        :aria-label="'Couleur ' + c.bg" :aria-pressed="form.bgColor === c.bg" @click="form.bgColor = c.bg; form.borderColor = c.border; form.textColor = c.text">
+                  <i v-if="form.bgColor === c.bg" class="fa-solid fa-check" :style="{ color: c.text }"></i>
+                </button>
+              </div>
+            </div>
+            <div class="pl-act">
+              <button type="button" class="btn sm" @click="closeModal">Annuler</button>
+              <button type="submit" class="btn fill sm">{{ editingId ? 'Enregistrer' : 'Ajouter' }}</button>
+            </div>
+          </form>
+        </dialog>
+
+        <!-- Gestionnaire de tags -->
+        <dialog v-if="isTagModalOpen" v-dlg class="pl-m sm" aria-labelledby="t-tag" @close="isTagModalOpen = false" @click.self="isTagModalOpen = false">
+          <div class="pl-mh">
+            <h3 id="t-tag" class="pl-mt"><i class="fa-solid fa-tags" aria-hidden="true"></i>Gestionnaire des tags</h3>
+            <button class="pl-ic" aria-label="Fermer" @click="isTagModalOpen = false"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="pl-mb">
+            <form class="pl-box" @submit.prevent="saveTag">
+              <b>{{ tagForm.id ? 'Modifier le tag' : 'Créer un nouveau tag' }}</b>
+              <div class="pl-tagrow">
+                <input type="text" v-model="tagForm.name" required autofocus placeholder="Nom du tag (ex. Projet, repas…)" aria-label="Nom du tag">
+                <input type="color" v-model="tagForm.color" aria-label="Couleur du tag">
+              </div>
+              <div class="pl-act">
+                <button v-if="tagForm.id" type="button" class="btn sm" @click="resetTagForm">Annuler</button>
+                <button type="submit" class="btn fill sm">{{ tagForm.id ? 'Mettre à jour' : 'Ajouter' }}</button>
+              </div>
+            </form>
+            <div class="pl-taglist">
+              <span class="pl-label">Tags existants ({{ tags.length }})</span>
+              <div v-for="tag in tags" :key="tag.id" class="pl-tagitem">
+                <span><i class="pl-dot lg" :style="{ backgroundColor: tag.color }"></i>{{ tag.name }}</span>
+                <span>
+                  <button class="pl-ic" aria-label="Modifier le tag" @click="editTag(tag)"><i class="fa-solid fa-pen"></i></button>
+                  <button class="pl-ic danger" aria-label="Supprimer le tag" @click="askDeleteTag(tag.id)"><i class="fa-solid fa-trash"></i></button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </dialog>
+
+        <!-- Export / import -->
+        <dialog v-if="isExportModalOpen" v-dlg class="pl-m sm" aria-labelledby="t-exp" @close="isExportModalOpen = false" @click.self="isExportModalOpen = false">
+          <div class="pl-mh">
+            <h3 id="t-exp" class="pl-mt"><i class="fa-solid fa-file-export" aria-hidden="true"></i>Exporter / importer</h3>
+            <button class="pl-ic" aria-label="Fermer" @click="isExportModalOpen = false"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="pl-list">
+            <button class="btn sm" @click="downloadJSON"><i class="fa-solid fa-download"></i>Exporter ({{ events.length }} activités)</button>
+            <fieldset class="pl-mode">
+              <legend>Lors d'un import</legend>
+              <label><input type="radio" value="merge" v-model="importMode"><span>Fusionner avec mon planning actuel</span></label>
+              <label><input type="radio" value="replace" v-model="importMode"><span>Remplacer mon planning actuel</span></label>
+            </fieldset>
+            <div class="pl-file">
+              <input type="file" id="pl-file" class="pl-sr" accept=".json,application/json" @change="importJSON">
+              <label class="btn sm" for="pl-file" style="display:block;text-align:center"><i class="fa-solid fa-upload"></i>Importer un fichier JSON</label>
+            </div>
+            <p class="pl-hint">Le fichier exporté contient vos activités et vos tags. Gardez-le comme sauvegarde : le planning n'est enregistré que dans ce navigateur.</p>
+            <button class="btn sm warn" @click="loadDemo247Data">Charger l'exemple de planning 24/7</button>
+            <button class="btn sm bad" @click="askClearAll">Tout effacer</button>
+          </div>
+        </dialog>
+
+        <!-- Confirmation (remplace alert/confirm du navigateur) -->
+        <dialog v-if="confirmDialog.show" v-dlg class="pl-m xs" aria-labelledby="t-conf" @close="confirmDialog.show = false" @click.self="confirmDialog.show = false">
+          <div class="pl-confirm">
+            <div class="pl-alert"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></div>
+            <h3 id="t-conf">{{ confirmDialog.title }}</h3>
+            <p>{{ confirmDialog.message }}</p>
+            <div class="pl-act">
+              <button class="btn sm" autofocus @click="confirmDialog.show = false">Annuler</button>
+              <button class="btn sm bad fill" @click="executeConfirmAction">Confirmer</button>
+            </div>
+          </div>
+        </dialog>
+
+      </div>
+    </div>
+  </section>
+</main>
+</body>
+</html>
